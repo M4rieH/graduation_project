@@ -8,6 +8,20 @@ import pandas as pd
 import datetime as dt
 from sklearn.preprocessing import OneHotEncoder
 
+def top_10(df, col, num=10):
+    sort_df = df.sort_values(col, ascending=False).iloc[:num]
+    
+    ax = sort_df[col].plot.bar()
+   
+    labels = []
+    for item in sort_df['title']:
+        labels.append(item[:10] + '...')
+        
+    ax.set_title(col.upper(), fontsize=16)
+    ax.set_xticklabels(labels, rotation=45, fontsize=10)
+    
+    return sort_df[['video_id', 'title', 'channel_title', col]]
+
 # #these are fine
 yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949
 yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
@@ -45,8 +59,6 @@ yt_kr['country'] = 'KR'
 yt_mx['country'] = 'MX' 
 yt_ru['country'] = 'RU' 
     
-
-
 
 
 # categories from json from usa (us data set contains one more category compared to other countries)
@@ -90,6 +102,13 @@ for country_df in df_country_list:
     country_df['dislike per view'] = country_df['dislikes']/country_df['views']
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
     
+    # trend_days = country_df.groupby(['video_id'])['video_id'].agg(total_trend_days=len).reset_index()
+    # country_df = pd.merge(country_df, trend_days, on='video_id', how='left')    
+
+ 
+for country_df in df_country_list:
+    error_videos = country_df.loc[country_df['video_error_or_removed']]
+    print(error_videos.shape[0])
 
 
     
@@ -99,3 +118,11 @@ string = '2017-11-13T09:09:31.000Z'
 
 print(string[0:-5])
     
+
+yt_ca['video_id'].nunique()
+yt_us['video_id'].nunique()
+yt_mx['video_id'].nunique()
+yt_gb['video_id'].nunique()
+
+top_10(yt_us, 'views', 10)
+
