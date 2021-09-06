@@ -5,89 +5,97 @@ Created on Tue Aug 31 14:50:21 2021
 @author: Jacob
 """
 import pandas as pd
-import numpy as np
+import datetime as dt
+from sklearn.preprocessing import OneHotEncoder
+
+# #these are fine
+yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949
+yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
+yt_de = pd.read_csv('dataset/DEvideos.csv') # 40 840
+yt_fr = pd.read_csv('dataset/FRvideos.csv') # 40 724
+yt_in = pd.read_csv('dataset/INvideos.csv') # 37 352
+yt_gb = pd.read_csv('dataset/GBvideos.csv') # 38 916
+yt_jp = pd.read_csv('dataset/JPvideos.csv') # 20 523
+yt_kr = pd.read_csv('dataset/KRvideos.csv') # 34 567 
+yt_mx = pd.read_csv('dataset/MXvideos.csv') # 40 451
+yt_ru = pd.read_csv('dataset/RUvideos.csv') # 40 739
+
+# # TOTAL = 338 320
+
+df_country_list = [yt_us, 
+                   yt_ca,
+                   yt_de,
+                   yt_fr,
+                   yt_in,
+                   yt_gb,
+                   yt_jp,
+                   yt_kr,
+                   yt_mx, 
+                   yt_ru]
 
 
-#these are fine
-us_yt = pd.read_csv('archive/USvideos.csv')
-ca_yt = pd.read_csv('archive/CAvideos.csv')
-de_yt = pd.read_csv('archive/DEvideos.csv')
-fr_yt = pd.read_csv('archive/FRvideos.csv')
-in_yt = pd.read_csv('archive/INvideos.csv')
-gb_yt = pd.read_csv('archive/GBvideos.csv')
-
-#these have encoding issues
-jp_yt = pd.read_csv('archive/JPvideos.csv', nrows = 500) 
-# kr_yt = pd.read_csv('archive/KRvideos.csv')
-# mx_yt = pd.read_csv('archive/MXvideos.csv')
-
+yt_us['country'] = 'US' 
+yt_ca['country'] = 'CA' 
+yt_de['country'] = 'DE' 
+yt_fr['country'] = 'FR' 
+yt_in['country'] = 'IN' 
+yt_gb['country'] = 'GB' 
+yt_jp['country'] = 'JP' 
+yt_kr['country'] = 'KR' 
+yt_mx['country'] = 'MX' 
+yt_ru['country'] = 'RU' 
+    
 
 
-# categories from json
-us_category_json = pd.read_json('archive/US_category_id.json')
-ca_category_json = pd.read_json('archive/CA_category_id.json')
-de_category_json = pd.read_json('archive/DE_category_id.json')
-fr_category_json = pd.read_json('archive/FR_category_id.json')
-in_category_json = pd.read_json('archive/IN_category_id.json')
-gb_category_json = pd.read_json('archive/GB_category_id.json')
-jp_category_json = pd.read_json('archive/JP_category_id.json')
-kr_category_json = pd.read_json('archive/KR_category_id.json')
-mx_category_json = pd.read_json('archive/MX_category_id.json')
-
-category_json_list = [us_category_json,
-                      ca_category_json,
-                      de_category_json,
-                      fr_category_json,
-                      in_category_json,
-                      gb_category_json,
-                      jp_category_json,
-                      kr_category_json,
-                      mx_category_json
-                      ]
-
-# extracting id and title for canada (can be implemented for the rest later)
 
 
-identification = [d.get('id') for d in ca_category_json['items']]
-items = [d.get('snippet') for d in ca_category_json['items']]
+# categories from json from usa (us data set contains one more category compared to other countries)
+category_json = pd.read_json('dataset/US_category_id.json')
+
+identification = [d.get('id') for d in category_json['items']]
+items = [d.get('snippet') for d in category_json['items']]
 cat_names = [d.get('title') for d in items]
+category_df = pd.DataFrame()
+category_df['category_id'] = identification
+category_df['category_name'] = cat_names
 
-ca_category_df = pd.DataFrame()
-ca_category_df['category_id'] = identification
-ca_category_df['category_name'] = cat_names
-
-# find unique categories present in canada-set. It's only 17 out of the 31 from ca_category_df
-unike = ca_yt['category_id'].unique()
-
-
-identification = [d.get('id') for d in jp_category_json['items']]
-items = [d.get('snippet') for d in jp_category_json['items']]
-cat_names = [d.get('title') for d in items]
-
-jp_category_df = pd.DataFrame()
-jp_category_df['category_id'] = identification
-jp_category_df['category_name'] = cat_names
-
-# find unique categories present in canada-set. It's only 17 out of the 31 from ca_category_df
-unike = jp_yt['category_id'].unique()
+del identification
+del items
+del cat_names
+    
+weekday_mapping = {0: 'Mon', 
+                   1: 'Tue',
+                   2: 'Wed',
+                   3: 'Thu',
+                   4: 'Fri',
+                   5: 'Sat',
+                   6: 'Sun'}
 
 
-identification = [d.get('id') for d in kr_category_json['items']]
-items = [d.get('snippet') for d in kr_category_json['items']]
-cat_names = [d.get('title') for d in items]
+for country_df in df_country_list: 
+    
+    country_df['trending_date'] = pd.to_datetime(country_df['trending_date'], format='%y.%d.%m')
+    country_df['publish_time'] = country_df['publish_time'].str.slice(0, -5)
+    country_df['publish_time'] = pd.to_datetime(country_df['publish_time'], format='%Y-%m-%dT%H:%M:%S')
+    
+    country_df['days_until_trending'] = -(country_df['publish_time'] - country_df['trending_date']).dt.days
+    
+    country_df['publish_time_wd'] = country_df['publish_time'].dt.dayofweek
+    country_df['publish_time_wd'] = country_df['publish_time_wd'].map(weekday_mapping)
+    
+    country_df['trending_date_wd'] = country_df['trending_date'].dt.dayofweek
+    country_df['trending_date_wd'] = country_df['trending_date_wd'].map(weekday_mapping)
+    
+    country_df['like per view'] = country_df['likes']/country_df['views']
+    country_df['dislike per view'] = country_df['dislikes']/country_df['views']
+    country_df['comment per view'] = country_df['comment_count']/country_df['views']
+    
 
-kr_category_df = pd.DataFrame()
-kr_category_df['category_id'] = identification
-kr_category_df['category_name'] = cat_names
 
-# find unique categories present in canada-set. It's only 17 out of the 31 from ca_category_df
+    
+print(type(yt_us['publish_time'][0]))
 
+string = '2017-11-13T09:09:31.000Z'
 
-
-identification = [d.get('id') for d in in_category_json['items']]
-items = [d.get('snippet') for d in in_category_json['items']]
-cat_names = [d.get('title') for d in items]
-
-in_category_df = pd.DataFrame()
-in_category_df['category_id'] = identification
-in_category_df['category_name'] = cat_names
+print(string[0:-5])
+    
