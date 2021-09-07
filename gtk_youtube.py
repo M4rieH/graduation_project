@@ -96,6 +96,6 @@ for country_df in df_country_list:
 # write to csv's
 
 for index, country_df in enumerate(df_country_list):
-    country_df.to_csv(rf'\new_csvs\{country_codes[index]}_data.csv')
+    country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
     print(index)
 
