@@ -7,6 +7,8 @@ Created on Tue Aug 31 14:50:21 2021
 import pandas as pd
 import datetime as dt
 from sklearn.preprocessing import OneHotEncoder
+from googleapiclient.discovery import build
+import grequests
 
 def top_10(df, col, num=10):
     sort_df = df.sort_values(col, ascending=False).iloc[:num]
@@ -98,7 +100,22 @@ for country_df in df_country_list:
 for index, country_df in enumerate(df_country_list):
     country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
     print(index)
+    
+# get unique video_id's
+
+unique_video_id_mx = yt_mx['video_id'].unique()
+
 
 # Get data from Youtube API
 
+api_key = 'AIzaSyB7PXfRpIlMKg7msCnCx0UUAP5Xl86ljvw'
+
+youtube = build('youtube','v3',developerKey=(api_key))
+def request(iden):
+    request = youtube.videos().list(part = 'contentDetails', id={iden})
+    response =request.execute()
+    return response
+
+request_test = request('SbOwzAl9ZfQ')
+print(request_test)
 
