@@ -10,16 +10,12 @@ from sklearn.preprocessing import OneHotEncoder
 
 def top_10(df, col, num=10):
     sort_df = df.sort_values(col, ascending=False).iloc[:num]
-    
     ax = sort_df[col].plot.bar()
-   
     labels = []
     for item in sort_df['title']:
-        labels.append(item[:10] + '...')
-        
+        labels.append(item[:10] + '...')  
     ax.set_title(col.upper(), fontsize=16)
     ax.set_xticklabels(labels, rotation=45, fontsize=10)
-    
     return sort_df[['video_id', 'title', 'channel_title', col]]
 
 # #these are fine
@@ -36,16 +32,8 @@ yt_ru = pd.read_csv('dataset/RUvideos.csv') # 40 739
 
 # # TOTAL = 338 320
 
-df_country_list = [yt_us, 
-                   yt_ca,
-                   yt_de,
-                   yt_fr,
-                   yt_in,
-                   yt_gb,
-                   yt_jp,
-                   yt_kr,
-                   yt_mx, 
-                   yt_ru]
+df_country_list = [yt_us, yt_ca, yt_de, yt_fr, yt_in, yt_gb,yt_jp, yt_kr,yt_mx, yt_ru]
+country_codes = ['US','CA','DE','FR','IN','GB','JP','KR','MX','RU']
 
 
 yt_us['country'] = 'US' 
@@ -59,8 +47,6 @@ yt_kr['country'] = 'KR'
 yt_mx['country'] = 'MX' 
 yt_ru['country'] = 'RU' 
     
-
-
 # categories from json from usa (us data set contains one more category compared to other countries)
 category_json = pd.read_json('dataset/US_category_id.json')
 
@@ -75,14 +61,9 @@ del identification
 del items
 del cat_names
     
-weekday_mapping = {0: 'Mon', 
-                   1: 'Tue',
-                   2: 'Wed',
-                   3: 'Thu',
-                   4: 'Fri',
-                   5: 'Sat',
-                   6: 'Sun'}
+weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
 
+# data prep
 
 for country_df in df_country_list: 
     
@@ -105,24 +86,16 @@ for country_df in df_country_list:
     # trend_days = country_df.groupby(['video_id'])['video_id'].agg(total_trend_days=len).reset_index()
     # country_df = pd.merge(country_df, trend_days, on='video_id', how='left')    
 
- 
+# prints number of videos with error or remove flag True in each data set
+
 for country_df in df_country_list:
     error_videos = country_df.loc[country_df['video_error_or_removed']]
     print(error_videos.shape[0])
 
 
-    
-print(type(yt_us['publish_time'][0]))
+# write to csv's
 
-string = '2017-11-13T09:09:31.000Z'
-
-print(string[0:-5])
-    
-
-yt_ca['video_id'].nunique()
-yt_us['video_id'].nunique()
-yt_mx['video_id'].nunique()
-yt_gb['video_id'].nunique()
-
-top_10(yt_us, 'views', 10)
+for index, country_df in enumerate(df_country_list):
+    country_df.to_csv(rf'\new_csvs\{country_codes[index]}_data.csv')
+    print(index)
 
