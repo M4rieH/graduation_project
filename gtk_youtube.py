@@ -89,6 +89,10 @@ for index, country_df in enumerate(df_country_list):
     country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
     print(index)
 
+yt_all_countries = pd.concat(df_country_list, axis = 0)
+yt_all_countries.to_csv(r'prepped_data\all_countries_data.csv')
+category_df.to_csv(r'prepped_data\categories.csv')
+
 # Get data from Youtube API
 
 
