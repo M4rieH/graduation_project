@@ -89,3 +89,6 @@ for index, country_df in enumerate(df_country_list):
     country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
     print(index)
 
+# Get data from Youtube API
+
+
