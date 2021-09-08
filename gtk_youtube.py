@@ -8,8 +8,7 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 from sklearn.preprocessing import OneHotEncoder
-from googleapiclient.discovery import build
-import grequests
+
 
 # loading datasets from 10 countries
 yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949
@@ -102,18 +101,7 @@ category_df.to_csv(r'prepped_data\categories.csv')
 
 unique_video_id = yt_all_countries['video_id'].unique()
 
-#Get data from Youtube API
-
-api_key = 'AIzaSyB7PXfRpIlMKg7msCnCx0UUAP5Xl86ljvw'
-
-youtube = build('youtube','v3',developerKey=(api_key))
-def request(iden):
-    request = youtube.videos().list(part = 'contentDetails', id={iden})
-    # response =request.execute()
-    # return response
-
-request_test = request('SbOwzAl9ZfQ')
-print(request_test)
+# Create Database
 
 
 
