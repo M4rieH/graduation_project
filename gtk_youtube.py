@@ -97,23 +97,23 @@ yt_all_countries = pd.concat(df_country_list, axis = 0)
 yt_all_countries.to_csv(r'prepped_data\all_countries_data.csv')
 category_df.to_csv(r'prepped_data\categories.csv')
 
-suspect_columns = yt_us[yt_us['description'].str.contains("Subscribe to WWE on YouTube: http://bit.ly/1i64OdT", na=False)]
 
 # get unique video_id's
 
 unique_video_id = yt_all_countries['video_id'].unique()
 
-# Get data from Youtube API
+#Get data from Youtube API
 
-# api_key = 'AIzaSyB7PXfRpIlMKg7msCnCx0UUAP5Xl86ljvw'
+api_key = 'AIzaSyB7PXfRpIlMKg7msCnCx0UUAP5Xl86ljvw'
 
-# youtube = build('youtube','v3',developerKey=(api_key))
-# def request(iden):
-#     request = youtube.videos().list(part = 'contentDetails', id={iden})
-#     response =request.execute()
-#     return response
+youtube = build('youtube','v3',developerKey=(api_key))
+def request(iden):
+    request = youtube.videos().list(part = 'contentDetails', id={iden})
+    # response =request.execute()
+    # return response
 
 request_test = request('SbOwzAl9ZfQ')
 print(request_test)
 
-print(yt_all_countries['video_id'].nunique())
+
+
