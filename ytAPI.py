@@ -15,5 +15,8 @@ request = youtube.videos().list(part = 'contentDetails', id='th5_9woFJmk')
 response =request.execute()
 print(response)
 
+url = https://date.nager.at/api/v3/publicholidays/2017/AT
+GET = /api/v3/PublicHolidays/{Year}/{CountryCode}
 
-
+rs = (grequests.get(u) for c in urls)
+grequests.map(rs)
