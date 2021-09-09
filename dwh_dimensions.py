@@ -54,5 +54,10 @@ dates = get_date_list('2017-11-14', '2018-06-14')
 
 d_index = list(range(0, len(dates)))
 
+del 
+
 dates_pd = pd.DataFrame(d_index, columns=['index'])
 dates_pd['date'] = dates
+
+dates_pd.to_csv(r'prepped_data\dates.csv')
+timestamp_pd.to_csv(r'prepped_data\timestamps.csv')

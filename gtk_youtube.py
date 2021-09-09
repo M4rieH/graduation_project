@@ -99,7 +99,7 @@ category_df.to_csv(r'prepped_data\categories.csv')
 
 # get unique video_id's
 
-unique_video_id = yt_all_countries['video_id'].unique()
+unique_video_id = yt_all_countries.columns
 
 # Create Database
 
