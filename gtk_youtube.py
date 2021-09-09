@@ -8,7 +8,9 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 from sklearn.preprocessing import OneHotEncoder
+import psycopg2
 
+from queries import *
 
 # loading datasets from 10 countries
 yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949
@@ -78,12 +80,6 @@ for country_df in df_country_list:
     # trend_days = country_df.groupby(['video_id'])['video_id'].agg(total_trend_days=len).reset_index()
     # country_df = pd.merge(country_df, trend_days, on='video_id', how='left')    
 
-# prints number of videos with error or remove flag True in each data set
-
-for country_df in df_country_list:
-    error_videos = country_df.loc[country_df['video_error_or_removed']]
-    print(error_videos.shape[0])
-
 
 # write to csv's
 
@@ -101,7 +97,44 @@ category_df.to_csv(r'prepped_data\categories.csv')
 
 unique_video_id = yt_all_countries.columns
 
-# Create Database
+
+# create and populate database
+
+def getOnThatDB(host='marie123.postgres.database.azure.com', user='marie@marie123', password='ProjectP5354', dbname = 'postgres', sslmode='require'):
+    connection = psycopg2.connect(
+        user=user,
+        password=password,
+        host=host,
+        database=dbname,
+        sslmode = sslmode
+    )
+    return connection
+
+with getOnThatDB() as connection: 
+    cursor = connection.cursor()
+    cursor.execute(create_categories_table)
+    cursor.execute(create_yt_all_countries_table)
+
+def populate_category_table():
+        
+    with getOnThatDB() as connection: 
+        cursor = connection.cursor()
+        cursor.executemany(populate_category_table_query,category_df.values.tolist())
+           
+#populate_category_table()
+
+from queries import *
+
+yt_to_db = yt_all_countries.copy()
+
+def populate_trending_data_table():
+    with getOnThatDB() as connection: 
+        cursor = connection.cursor()
+        cursor.executemany(populate_trending_data_query,yt_to_db.values.tolist())
+     
+populate_trending_data_table()
+
+yt_list = yt_all_countries.values.tolist()
 
 
 
