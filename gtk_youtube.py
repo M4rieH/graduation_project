@@ -9,6 +9,15 @@ import numpy as np
 import datetime as dt
 from sklearn.preprocessing import OneHotEncoder
 import psycopg2
+from deep_translator import GoogleTranslator
+import time
+from googletrans import Translator
+from polyglot.detect import Detector
+from polyglot.detect.base import logger as polyglot_logger
+polyglot_logger.setLevel("ERROR")
+
+translator = Translator()
+
 
 from queries import *
 
@@ -27,6 +36,9 @@ yt_ru = pd.read_csv('dataset/RUvideos.csv') # 40 739
 # # TOTAL = 338 320
 
 # some useful lists
+
+
+
 df_country_list = [yt_us, yt_ca, yt_de, yt_fr, yt_in, yt_gb,yt_jp, yt_kr,yt_mx, yt_ru]
 country_codes = ['US','CA','DE','FR','IN','GB','JP','KR','MX','RU']
 
@@ -43,21 +55,93 @@ yt_mx['country'] = 'MX'
 yt_ru['country'] = 'RU' 
     
 # extracting categories from json from usa (us data set contains one more category compared to other countries)
-category_json = pd.read_json('dataset/US_category_id.json')
-identification = [d.get('id') for d in category_json['items']]
-items = [d.get('snippet') for d in category_json['items']]
-cat_names = [d.get('title') for d in items]
-category_df = pd.DataFrame()
-category_df['category_id'] = identification
-category_df['category_name'] = cat_names
+def categories_to_csv(): 
+    category_json = pd.read_json('dataset/US_category_id.json')
+    identification = [d.get('id') for d in category_json['items']]
+    items = [d.get('snippet') for d in category_json['items']]
+    cat_names = [d.get('title') for d in items]
+    category_df = pd.DataFrame()
+    category_df['category_id'] = identification
+    category_df['category_name'] = cat_names
+    del identification
+    del items
+    del cat_names
+    category_df.to_csv(r'prepped_data\categories.csv')
 
-del identification
-del items
-del cat_names
+categories_to_csv()
     
 weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
 
+
+
+
 # data prep
+
+def count_tags(tag_list):
+    return len(tag_list)
+
+def clean_tags(tag_string):
+    tag_list = tag_string.split('|')
+    tag_list = [i.replace('"','') for i in tag_list]
+    tag_list = [i.replace('“','') for i in tag_list]
+    tag_list = [i.replace('”','') for i in tag_list]
+    tag_list = [j.lower() for j in tag_list]
+    for tag in tag_list:
+        if tag == '[none]':
+            tag_list.remove(tag)
+    return tag_list
+
+from deep_translator import GoogleTranslator
+import time
+from googletrans import Translator
+from polyglot.detect import Detector
+from polyglot.detect.base import logger as polyglot_logger
+
+polyglot_logger.setLevel("ERROR")
+
+# pandas mapping progress bar
+# ta ut utvalg av dataen og kjør mapping på
+# drit i oversettelsen hvis det ikke går videre nå 
+
+def translate_to_english(tag_list):
+    print(f'New line in df with number of tags {len(tag_list)}')
+    success = 0
+    failure = 0
+    for tag in tag_list:
+        lang_obj = Detector(tag, quiet=True)
+        lang_code = lang_obj.language.code
+        lang_conf = lang_obj.language.confidence
+      
+        # print('tag:', tag)
+        # print('language code:', lang_code)
+        # print('confidence:', lang_conf)
+        # print('\n')
+        if (lang_code != 'en') and (lang_code != 'sco'):
+            try:
+                # print(f'foreign tag in language {lang_code}: ', tag)
+                # print('to')
+                # old_tag = tag
+                tag = GoogleTranslator(source=lang_code, target = 'en').translate(tag)
+                # print('new tag:', tag, '\n')
+                # print(f'Successful translation from {lang_code} to english')
+                # print(f'Old tag: {old_tag} to new tag: {tag}')
+                success += 1
+            except:
+                # print(f'Unable to translate tag: {tag}')
+                # print(f'think language is {lang_code}')
+                failure += 1
+    try:
+        failure_rate = float(failure/(failure+success))
+    except:
+        failure_rate = 'no data'
+    print(f'failure rate {failure_rate}')
+     
+    return tag_list
+
+
+words = ['나', '이다',' 여기 ',' 케이크','생신','배우다','나','한국어',' 하지만 ','그것','간다','아니다',' 너무 좋다']
+
+word_trans = translate_to_english(words)
 
 for country_df in df_country_list: 
     
@@ -76,65 +160,81 @@ for country_df in df_country_list:
     country_df['like per view'] = country_df['likes']/country_df['views']
     country_df['dislike per view'] = country_df['dislikes']/country_df['views']
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
-    
-    # trend_days = country_df.groupby(['video_id'])['video_id'].agg(total_trend_days=len).reset_index()
-    # country_df = pd.merge(country_df, trend_days, on='video_id', how='left')    
+    country_df['tags'] = country_df['tags'].map(clean_tags)
+    country_df['tag_count'] = country_df['tags'].map(count_tags)
+    if country_df['country'][0] == 'US':
+        country_df['tags'] = country_df['tags'].map(translate_to_english)
+    print(f'ferdig med {country_df}')
+
+
+yt_us.hist(column=['tag_count'], bins = 5)
+
+yt_us['video_id'].nunique()
+yt_us['channel_title'].nunique()
+yt_us['category_id'].nunique()
+
+
+
+
+
 
 
 # write to csv's
 
-for index, country_df in enumerate(df_country_list):
-    country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
-    print(index)
+# for index, country_df in enumerate(df_country_list):
+#     country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
+#     print(index)
 
 yt_all_countries = pd.concat(df_country_list, axis = 0)
 
-yt_all_countries.to_csv(r'prepped_data\all_countries_data.csv')
-category_df.to_csv(r'prepped_data\categories.csv')
+yt_all_countries['category_id'].nunique()
+
+
+
+
+# yt_all_countries.to_csv(r'prepped_data\all_countries_data.csv')
 
 
 # get unique video_id's
 
-unique_video_id = yt_all_countries.columns
-
 
 # create and populate database
 
-def getOnThatDB(host='marie123.postgres.database.azure.com', user='marie@marie123', password='ProjectP5354', dbname = 'postgres', sslmode='require'):
-    connection = psycopg2.connect(
-        user=user,
-        password=password,
-        host=host,
-        database=dbname,
-        sslmode = sslmode
-    )
-    return connection
+# def getOnThatDB(host='marie123.postgres.database.azure.com', user='marie@marie123', password='ProjectP5354', dbname = 'postgres', sslmode='require'):
+#     connection = psycopg2.connect(
+#         user=user,
+#         password=password,
+#         host=host,
+#         database=dbname,
+#         sslmode = sslmode
+#     )
+#     return connection
 
-with getOnThatDB() as connection: 
-    cursor = connection.cursor()
-    cursor.execute(create_categories_table)
-    cursor.execute(create_yt_all_countries_table)
+# with getOnThatDB() as connection: 
+#     cursor = connection.cursor()
+#     cursor.execute(create_categories_table)
+#     cursor.execute(create_yt_all_countries_table)
 
-def populate_category_table():
+# def populate_category_table():
         
-    with getOnThatDB() as connection: 
-        cursor = connection.cursor()
-        cursor.executemany(populate_category_table_query,category_df.values.tolist())
+#     with getOnThatDB() as connection: 
+#         cursor = connection.cursor()
+#         cursor.executemany(populate_category_table_query,category_df.values.tolist())
            
-#populate_category_table()
+# #populate_category_table()
 
-from queries import *
+# from queries import *
 
-yt_to_db = yt_all_countries.copy()
+# yt_to_db = yt_all_countries.copy()
 
-def populate_trending_data_table():
-    with getOnThatDB() as connection: 
-        cursor = connection.cursor()
-        cursor.executemany(populate_trending_data_query,yt_to_db.values.tolist())
+# def populate_trending_data_table():
+#     with getOnThatDB() as connection: 
+#         cursor = connection.cursor()
+#         cursor.executemany(populate_trending_data_query,yt_to_db.values.tolist())
      
-populate_trending_data_table()
+# populate_trending_data_table()
 
-yt_list = yt_all_countries.values.tolist()
+# yt_list = yt_all_countries.values.tolist()
 
 
 
