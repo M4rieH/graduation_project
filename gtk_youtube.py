@@ -15,7 +15,6 @@ import time
 import psycopg2
 
 
-
 # FETCH FUNCTIONS AND QUERY-STRINGS
 from mapping_functions import *
 
@@ -26,7 +25,7 @@ from multiprocessing import Pool, cpu_count
 translator = Translator()
 
 # loading datasets from 10 countries
-yt_us = pd.read_csv('dataset/USvideos.csv', nrows = 100) # 40 949 / nrows
+yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949 / nrows
 yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
 yt_de = pd.read_csv('dataset/DEvideos.csv') # 40 840
 yt_fr = pd.read_csv('dataset/FRvideos.csv') # 40 724
@@ -190,9 +189,9 @@ yt_all_countries = pd.concat(df_country_list, axis = 0)
 # yt_list = yt_all_countries.values.tolist()
 
 # alchemy
-
+print('Uploading to DB:')
 from sqlalchemy import create_engine
 engine_azure = create_engine('postgresql://marie@marie123:Project5354@marie123.postgres.database.azure.com:5432/postgres')
 yt_all_countries.to_sql('trending_data',engine_azure)
-
+print('Uploading finished')
 
