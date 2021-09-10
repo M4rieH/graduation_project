@@ -14,7 +14,10 @@ import time
 from googletrans import Translator
 from polyglot.detect import Detector
 from polyglot.detect.base import logger as polyglot_logger
+from mapping_functions import translate_to_english, count
+
 polyglot_logger.setLevel("ERROR")
+from multiprocessing import Pool, cpu_count
 
 translator = Translator()
 
@@ -22,7 +25,7 @@ translator = Translator()
 from queries import *
 
 # loading datasets from 10 countries
-yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949
+yt_us = pd.read_csv('dataset/USvideos.csv', nrows=10) # 40 949
 yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
 yt_de = pd.read_csv('dataset/DEvideos.csv') # 40 840
 yt_fr = pd.read_csv('dataset/FRvideos.csv') # 40 724
@@ -37,10 +40,11 @@ yt_ru = pd.read_csv('dataset/RUvideos.csv') # 40 739
 
 # some useful lists
 
-
-
 df_country_list = [yt_us, yt_ca, yt_de, yt_fr, yt_in, yt_gb,yt_jp, yt_kr,yt_mx, yt_ru]
 country_codes = ['US','CA','DE','FR','IN','GB','JP','KR','MX','RU']
+
+for country_df in df_country_list:
+    del country_df['thumbnail_link']
 
 # adding country-column to all datasets
 yt_us['country'] = 'US' 
@@ -75,73 +79,6 @@ weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6
 
 
 
-# data prep
-
-def count_tags(tag_list):
-    return len(tag_list)
-
-def clean_tags(tag_string):
-    tag_list = tag_string.split('|')
-    tag_list = [i.replace('"','') for i in tag_list]
-    tag_list = [i.replace('“','') for i in tag_list]
-    tag_list = [i.replace('”','') for i in tag_list]
-    tag_list = [j.lower() for j in tag_list]
-    for tag in tag_list:
-        if tag == '[none]':
-            tag_list.remove(tag)
-    return tag_list
-
-from deep_translator import GoogleTranslator
-import time
-from googletrans import Translator
-from polyglot.detect import Detector
-from polyglot.detect.base import logger as polyglot_logger
-
-polyglot_logger.setLevel("ERROR")
-
-# pandas mapping progress bar
-# ta ut utvalg av dataen og kjør mapping på
-# drit i oversettelsen hvis det ikke går videre nå 
-
-def translate_to_english(tag_list):
-    print(f'New line in df with number of tags {len(tag_list)}')
-    success = 0
-    failure = 0
-    for tag in tag_list:
-        lang_obj = Detector(tag, quiet=True)
-        lang_code = lang_obj.language.code
-        lang_conf = lang_obj.language.confidence
-      
-        # print('tag:', tag)
-        # print('language code:', lang_code)
-        # print('confidence:', lang_conf)
-        # print('\n')
-        if (lang_code != 'en') and (lang_code != 'sco'):
-            try:
-                # print(f'foreign tag in language {lang_code}: ', tag)
-                # print('to')
-                # old_tag = tag
-                tag = GoogleTranslator(source=lang_code, target = 'en').translate(tag)
-                # print('new tag:', tag, '\n')
-                # print(f'Successful translation from {lang_code} to english')
-                # print(f'Old tag: {old_tag} to new tag: {tag}')
-                success += 1
-            except:
-                # print(f'Unable to translate tag: {tag}')
-                # print(f'think language is {lang_code}')
-                failure += 1
-    try:
-        failure_rate = float(failure/(failure+success))
-    except:
-        failure_rate = 'no data'
-    print(f'failure rate {failure_rate}')
-     
-    return tag_list
-
-
-words = ['나', '이다',' 여기 ',' 케이크','생신','배우다','나','한국어',' 하지만 ','그것','간다','아니다',' 너무 좋다']
-
-word_trans = translate_to_english(words)
 
 for country_df in df_country_list: 
     
@@ -162,33 +99,39 @@ for country_df in df_country_list:
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
-    if country_df['country'][0] == 'US':
-        country_df['tags'] = country_df['tags'].map(translate_to_english)
-    print(f'ferdig med {country_df}')
-
-
-yt_us.hist(column=['tag_count'], bins = 5)
-
-yt_us['video_id'].nunique()
-yt_us['channel_title'].nunique()
-yt_us['category_id'].nunique()
-
-
-
-
-
-
-
-# write to csv's
-
-# for index, country_df in enumerate(df_country_list):
-#     country_df.to_csv(rf'prepped_data\{country_codes[index]}_data.csv')
-#     print(index)
+   
+    print(f'ferdig med {country_df["country"][0]}')
 
 yt_all_countries = pd.concat(df_country_list, axis = 0)
 
-yt_all_countries['category_id'].nunique()
 
+# TRANSLATOR 
+
+# time1 = time.time()
+# yt_us['tags'] = yt_us['tags'].map(translate_to_english)
+# time2 = time.time()
+
+# def process_Pandas_data(func, df, num_processes=None):
+    
+#     # If num_processes is not specified, default to minimum(#columns, #machine-cores)
+#     if num_processes==None:
+#         num_processes = min(df.shape[1], cpu_count())
+    
+#     # 'with' context manager takes care of pool.close() and pool.join() for us
+#     with Pool(num_processes) as pool:
+        
+#         # we need a sequence to pass pool.map; this line creates a generator (lazy iterator) of columns
+#         seq = df['tags']
+        
+#         # pool.map returns results as a list
+#         results_list = pd.DataFrame(pool.map(func, seq))
+        
+#         # return list of processed columns, concatenated together as a new dataframe
+#         return pd.concat(results_list, axis=1)
+
+# if __name__ == '__main__':
+  
+#     mp_result = process_Pandas_data(translate_to_english, yt_us, 8)
 
 
 
