@@ -26,7 +26,7 @@ from multiprocessing import Pool, cpu_count
 translator = Translator()
 
 # loading datasets from 10 countries
-yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949 / nrows
+yt_us = pd.read_csv('dataset/USvideos.csv', nrows = 100) # 40 949 / nrows
 yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
 yt_de = pd.read_csv('dataset/DEvideos.csv') # 40 840
 yt_fr = pd.read_csv('dataset/FRvideos.csv') # 40 724
@@ -80,7 +80,7 @@ US_holidays = holidays.UnitedStates()
 date(2015, 1, 2) in US_holidays
 
 for country_df in df_country_list: 
-    
+    country_df['index1'] = country_df.index
     country_df['trending_date'] = pd.to_datetime(country_df['trending_date'], format='%y.%d.%m')
     country_df['publish_time'] = country_df['publish_time'].str.slice(0, -5)
     country_df['publish_time'] = pd.to_datetime(country_df['publish_time'], format='%Y-%m-%dT%H:%M:%S')
@@ -92,29 +92,34 @@ for country_df in df_country_list:
     
     country_df['trending_date_wd_num'] = country_df['trending_date'].dt.dayofweek
     country_df['trending_date_wd'] = country_df['trending_date_wd_num'].map(weekday_mapping)
-    
+    country_df["comments_disabled"] = country_df["comments_disabled"].astype(int)
+    country_df["ratings_disabled"] = country_df["ratings_disabled"].astype(int)
+    country_df["video_error_or_removed"] = country_df["video_error_or_removed"].astype(int)
     country_df['like per view'] = country_df['likes']/country_df['views']
     country_df['dislike per view'] = country_df['dislikes']/country_df['views']
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
     
-    #country_df['is_holiday'] = country_df['trending_date'].map(holiday_mapping)
     #country_df['is_holiday'] = country_df.apply(lambda x: holiday_mapping(country = x['country'], date_input = x['trending_date']), axis=1)
-    country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['country'], country_df['trending_date']))]
-    
+    time1 = time.time()
+    country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['index1'], country_df['country'], country_df['trending_date']))]
+    time2 = time.time()
+    print(time2-time1)
    
     print(f'ferdig med {country_df["country"][0]}')
 
-yt_all_countries = pd.concat(df_country_list, axis = 0)
+print(type(yt_us['comments_disabled'][0]))
 
-dir(yt_kr)
 
 # TRANSLATOR 
 
 # time1 = time.time()
 # yt_us['tags'] = yt_us['tags'].map(translate_to_english)
 # time2 = time.time()
+
+
+yt_all_countries = pd.concat(df_country_list, axis = 0)
 
 # def process_Pandas_data(func, df, num_processes=None):
     

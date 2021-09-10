@@ -19,15 +19,19 @@ polyglot_logger.setLevel("ERROR")
 #HOLIDAY
 import holidays
 
+def lang_detector(word):
+    lang_obj = Detector(word, quiet=True)
+    lang_code = lang_obj.language.code
+    lang_conf = lang_obj.language.confidence
+    return lang_code, lang_conf 
+
 
 def translate_to_english(tag_list):
     print(f'New line in df with number of tags {len(tag_list)}')
     success = 0
     failure = 0
     for tag in tag_list:
-        lang_obj = Detector(tag, quiet=True)
-        lang_code = lang_obj.language.code
-        lang_conf = lang_obj.language.confidence
+        lang_code, lang_conf = lang_detector(tag)
       
         # print('tag:', tag)
         # print('language code:', lang_code)
@@ -68,10 +72,8 @@ def clean_tags(tag_string):
     return tag_list
 
 weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
-country_mapping = {}
 
-def holiday_mapping(country, date_input):
-   
+def holiday_mapping(index, country, date_input):
     try:  
         local_holidays = holidays.CountryHoliday(country)
         year = date_input.year
