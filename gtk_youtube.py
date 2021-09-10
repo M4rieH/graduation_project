@@ -184,5 +184,10 @@ dir(yt_kr)
 
 # yt_list = yt_all_countries.values.tolist()
 
+# alchemy
+
+from sqlalchemy import create_engine
+engine_azure = create_engine('postgresql://marie@marie123:Project5354@marie123.postgres.database.azure.com:5432/postgres')
+yt_all_countries.to_sql('trending_data',engine_azure)
 
 
