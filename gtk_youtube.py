@@ -4,28 +4,29 @@ Created on Tue Aug 31 14:50:21 2021
 
 @author: Jacob
 """
+
+# STD
 import pandas as pd
 import numpy as np
 import datetime as dt
-from sklearn.preprocessing import OneHotEncoder
-import psycopg2
-from deep_translator import GoogleTranslator
+from datetime import date
 import time
-from googletrans import Translator
-from polyglot.detect import Detector
-from polyglot.detect.base import logger as polyglot_logger
-from mapping_functions import translate_to_english, count
+# DB
+import psycopg2
 
-polyglot_logger.setLevel("ERROR")
-from multiprocessing import Pool, cpu_count
 
-translator = Translator()
 
+# FETCH FUNCTIONS AND QUERY-STRINGS
+from mapping_functions import *
 
 from queries import *
 
+# TRANSLATOR
+from multiprocessing import Pool, cpu_count
+translator = Translator()
+
 # loading datasets from 10 countries
-yt_us = pd.read_csv('dataset/USvideos.csv', nrows=10) # 40 949
+yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949 / nrows
 yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
 yt_de = pd.read_csv('dataset/DEvideos.csv') # 40 840
 yt_fr = pd.read_csv('dataset/FRvideos.csv') # 40 724
@@ -73,12 +74,10 @@ def categories_to_csv():
     category_df.to_csv(r'prepped_data\categories.csv')
 
 categories_to_csv()
-    
-weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
 
+US_holidays = holidays.UnitedStates()
 
-
-
+date(2015, 1, 2) in US_holidays
 
 for country_df in df_country_list: 
     
@@ -88,22 +87,28 @@ for country_df in df_country_list:
     
     country_df['days_until_trending'] = -(country_df['publish_time'] - country_df['trending_date']).dt.days
     
-    country_df['publish_time_wd'] = country_df['publish_time'].dt.dayofweek
-    country_df['publish_time_wd'] = country_df['publish_time_wd'].map(weekday_mapping)
+    country_df['publish_time_wd_num'] = country_df['publish_time'].dt.dayofweek
+    country_df['publish_time_wd'] = country_df['publish_time_wd_num'].map(weekday_mapping)
     
-    country_df['trending_date_wd'] = country_df['trending_date'].dt.dayofweek
-    country_df['trending_date_wd'] = country_df['trending_date_wd'].map(weekday_mapping)
+    country_df['trending_date_wd_num'] = country_df['trending_date'].dt.dayofweek
+    country_df['trending_date_wd'] = country_df['trending_date_wd_num'].map(weekday_mapping)
     
     country_df['like per view'] = country_df['likes']/country_df['views']
     country_df['dislike per view'] = country_df['dislikes']/country_df['views']
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
+    
+    #country_df['is_holiday'] = country_df['trending_date'].map(holiday_mapping)
+    #country_df['is_holiday'] = country_df.apply(lambda x: holiday_mapping(country = x['country'], date_input = x['trending_date']), axis=1)
+    country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['country'], country_df['trending_date']))]
+    
    
     print(f'ferdig med {country_df["country"][0]}')
 
 yt_all_countries = pd.concat(df_country_list, axis = 0)
 
+dir(yt_kr)
 
 # TRANSLATOR 
 

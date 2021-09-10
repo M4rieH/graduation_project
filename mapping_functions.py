@@ -4,13 +4,22 @@ Created on Thu Sep  9 21:41:37 2021
 
 @author: Jacob
 """
+# STD
+
+from datetime import date
+
+#TRANSLATOR
 from deep_translator import GoogleTranslator
 import time
 from googletrans import Translator
 from polyglot.detect import Detector
 from polyglot.detect.base import logger as polyglot_logger
-
 polyglot_logger.setLevel("ERROR")
+
+#HOLIDAY
+import holidays
+
+
 def translate_to_english(tag_list):
     print(f'New line in df with number of tags {len(tag_list)}')
     success = 0
@@ -57,3 +66,21 @@ def clean_tags(tag_string):
         if tag == '[none]':
             tag_list.remove(tag)
     return tag_list
+
+weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
+country_mapping = {}
+
+def holiday_mapping(country, date_input):
+   
+    try:  
+        local_holidays = holidays.CountryHoliday(country)
+        year = date_input.year
+        month = date_input.month
+        day = date_input.day
+        if date(year, month, day) in local_holidays:
+            return 1
+        else:
+            return 0 
+    except:
+        return 0
+
