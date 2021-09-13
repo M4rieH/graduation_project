@@ -4,13 +4,13 @@ Created on Tue Aug 31 14:50:21 2021
 
 @author: Jacob
 """
-
 # STD
 import pandas as pd
 import numpy as np
 import datetime as dt
 from datetime import date
 import time
+from collections import Counter
 # DB
 import psycopg2
 
@@ -79,7 +79,6 @@ US_holidays = holidays.UnitedStates()
 date(2015, 1, 2) in US_holidays
 
 for country_df in df_country_list: 
-    country_df['index1'] = country_df.index
     country_df['trending_date'] = pd.to_datetime(country_df['trending_date'], format='%y.%d.%m')
     country_df['publish_time'] = country_df['publish_time'].str.slice(0, -5)
     country_df['publish_time'] = pd.to_datetime(country_df['publish_time'], format='%Y-%m-%dT%H:%M:%S')
@@ -100,98 +99,50 @@ for country_df in df_country_list:
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
     
-    #country_df['is_holiday'] = country_df.apply(lambda x: holiday_mapping(country = x['country'], date_input = x['trending_date']), axis=1)
     time1 = time.time()
-    country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['index1'], country_df['country'], country_df['trending_date']))]
+    country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['country'], country_df['trending_date']))]
     time2 = time.time()
     print(time2-time1)
    
     print(f'ferdig med {country_df["country"][0]}')
 
-print(type(yt_us['comments_disabled'][0]))
-
-
 # TRANSLATOR 
 
-# time1 = time.time()
-# yt_us['tags'] = yt_us['tags'].map(translate_to_english)
-# time2 = time.time()
+print('Beginning translation of US tags')
+time1 = time.time()
+yt_us['tags'] = yt_us['tags'].map(translate_to_english)
+time2 = time.time()
+print(f'Finished in {(time2-time1):.1f} seconds')
+
+def tags_to_list(df):
+    unique_tags_list = [] 
+    for index, row in df.iterrows():
+        tags = row['tags']
+        for tag in tags:
+            unique_tags_list.append(tag)
+    return unique_tags_list
+
+
+tags_list = tags_to_list(yt_us)
+
+counter = Counter(tags_list).most_common()
+
+
 
 
 yt_all_countries = pd.concat(df_country_list, axis = 0)
-
-# def process_Pandas_data(func, df, num_processes=None):
-    
-#     # If num_processes is not specified, default to minimum(#columns, #machine-cores)
-#     if num_processes==None:
-#         num_processes = min(df.shape[1], cpu_count())
-    
-#     # 'with' context manager takes care of pool.close() and pool.join() for us
-#     with Pool(num_processes) as pool:
-        
-#         # we need a sequence to pass pool.map; this line creates a generator (lazy iterator) of columns
-#         seq = df['tags']
-        
-#         # pool.map returns results as a list
-#         results_list = pd.DataFrame(pool.map(func, seq))
-        
-#         # return list of processed columns, concatenated together as a new dataframe
-#         return pd.concat(results_list, axis=1)
-
-# if __name__ == '__main__':
-  
-#     mp_result = process_Pandas_data(translate_to_english, yt_us, 8)
-
 
 
 # yt_all_countries.to_csv(r'prepped_data\all_countries_data.csv')
 
 
-# get unique video_id's
-
-
-# create and populate database
-
-# def getOnThatDB(host='marie123.postgres.database.azure.com', user='marie@marie123', password='ProjectP5354', dbname = 'postgres', sslmode='require'):
-#     connection = psycopg2.connect(
-#         user=user,
-#         password=password,
-#         host=host,
-#         database=dbname,
-#         sslmode = sslmode
-#     )
-#     return connection
-
-# with getOnThatDB() as connection: 
-#     cursor = connection.cursor()
-#     cursor.execute(create_categories_table)
-#     cursor.execute(create_yt_all_countries_table)
-
-# def populate_category_table():
-        
-#     with getOnThatDB() as connection: 
-#         cursor = connection.cursor()
-#         cursor.executemany(populate_category_table_query,category_df.values.tolist())
-           
-# #populate_category_table()
-
-# from queries import *
-
-# yt_to_db = yt_all_countries.copy()
-
-# def populate_trending_data_table():
-#     with getOnThatDB() as connection: 
-#         cursor = connection.cursor()
-#         cursor.executemany(populate_trending_data_query,yt_to_db.values.tolist())
-     
-# populate_trending_data_table()
-
-# yt_list = yt_all_countries.values.tolist()
 
 # alchemy
 print('Uploading to DB:')
 from sqlalchemy import create_engine
-engine_azure = create_engine('postgresql://marie@marie123:Project5354@marie123.postgres.database.azure.com:5432/postgres')
+engine_azure = create_engine('postgresql://marie@marie123:ProjectP5354@marie123.postgres.database.azure.com:5432/postgres')
 yt_all_countries.to_sql('trending_data',engine_azure)
 print('Uploading finished')
+
+
 

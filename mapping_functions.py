@@ -26,36 +26,18 @@ def lang_detector(word):
     return lang_code, lang_conf 
 
 
-def translate_to_english(tag_list):
-    print(f'New line in df with number of tags {len(tag_list)}')
-    success = 0
-    failure = 0
-    for tag in tag_list:
-        lang_code, lang_conf = lang_detector(tag)
-      
-        # print('tag:', tag)
-        # print('language code:', lang_code)
-        # print('confidence:', lang_conf)
-        # print('\n')
+def translate_to_english(word_list):
+    for index, word in enumerate(word_list):
+        lang_code, lang_conf = lang_detector(word)
         if (lang_code != 'en') and (lang_code != 'sco'):
             try:
-                old_tag = tag
-                tag = GoogleTranslator(source=lang_code, target = 'en').translate(tag)
-                # print('new tag:', tag, '\n')
-                # print(f'Successful translation from {lang_code} to english')
-                # print(f'Old tag: {old_tag} to new tag: {tag}')
-                # success += 1
+                word = GoogleTranslator(source=lang_code, target = 'en').translate(word)
+                word_list[index] = word
             except:
-                print(f'Unable to translate tag: {tag}')
-                print(f'think language is {lang_code}')
-                # failure += 1
-    # try:
-    #     failure_rate = float(failure/(failure+success))
-    # except:
-    #     failure_rate = 'no data'
-    # # print(f'failure rate {failure_rate}')
-     
-    return tag_list
+                pass
+    return word_list
+
+
 
 def count_tags(tag_list):
     return len(tag_list)
@@ -73,7 +55,9 @@ def clean_tags(tag_string):
 
 weekday_mapping = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
 
-def holiday_mapping(index, country, date_input):
+def holiday_mapping(country, date_input):
+    if country == 'KR':
+        country = 'US'
     try:  
         local_holidays = holidays.CountryHoliday(country)
         year = date_input.year
