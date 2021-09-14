@@ -3,7 +3,132 @@
 Created on Wed Sep  8 14:50:55 2021
 
 @author: Marie
+
 """
+
+create_facts_table_query = '''
+
+CREATE TABLE IF NOT EXISTS datamart.FACTS_trending_youtube_data(
+    video_id VARCHAR(25) references datamart.dim_videos(video_id),
+    trend_date_id TEXT references datamart.dim_date(date),
+    pub_date_id TEXT references datamart.dim_date(date),
+    country_code VARCHAR(2) references datamart.DIM_countries(country_code),
+    likes INT,
+    dislikes INT,
+    comment_count INT, 
+    ratings_disabled INT,
+    video_error_or_removed INT, 
+    days_until_trending INT,
+    PRIMARY KEY(video_id, trend_date_id, pub_date_id, country_code)
+    )
+
+'''
+
+
+populate_dim_videos_table_query = '''
+INSERT INTO datamart.DIM_videos(video_id, title, channel_title, description, category_name)
+VALUES(%s, %s, %s, %s, %s)
+
+'''
+
+
+count_dim_video_query = '''
+
+SELECT COUNT(*)
+FROM datamart.DIM_videos
+
+'''
+
+create_dim_videos_query = '''
+
+CREATE TABLE IF NOT EXISTS datamart.DIM_videos(
+    video_id VARCHAR(25) PRIMARY KEY,
+    channel_title TEXT,
+    category_name VARCHAR(30),
+    title TEXT, 
+    description TEXT
+    )
+
+'''
+
+
+
+create_publish_date_view_query = '''
+CREATE OR REPLACE VIEW datamart.VIEW_pub_date AS 
+SELECT * FROM datamart.DIM_date
+'''
+
+create_trend_date_view_query = '''
+CREATE OR REPLACE VIEW datamart.VIEW_trend_date AS 
+SELECT * FROM datamart.DIM_date
+WHERE year > 2016
+'''
+
+count_dim_countries_query = '''
+
+SELECT COUNT(*)
+FROM datamart.DIM_countries
+
+'''
+
+populate_dim_country_table_query = '''
+INSERT INTO datamart.DIM_countries(country_code, country_name)
+VALUES(%s, %s)
+
+'''
+
+
+create_dim_country_table_query = '''
+
+CREATE TABLE IF NOT EXISTS datamart.DIM_countries(
+    country_code varchar(2) PRIMARY KEY,
+    country_name varchar(20)
+    )
+
+'''
+
+
+
+populate_dim_date_table_query = '''
+INSERT INTO datamart.DIM_date(date, year, month, day, weekday_num, is_holidayUS,
+                              is_holidayCA, is_holidayIN, is_holidayGB, is_holidayFR,
+                              is_holidayDE, is_holidayJP, is_holidayKR, is_holidayRU, 
+                              is_holidayMX, is_weekend)
+VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+
+'''
+
+
+
+count_dim_date_query = '''
+
+SELECT COUNT(*)
+FROM datamart.DIM_date
+'''
+
+
+
+
+create_dim_date_table_query = '''
+CREATE TABLE IF NOT EXISTS datamart.DIM_date(
+date TEXT PRIMARY KEY,
+year INT,
+month INT, 
+day INT, 
+weekday_num INT, 
+is_holidayUS INT,
+is_holidayCA INT,
+is_holidayIN INT, 
+is_holidayGB INT,
+is_holidayFR INT,
+is_holidayDE INT,
+is_holidayJP INT,
+is_holidayKR INT, 
+is_holidayRU INT,
+is_holidayMX INT, 
+is_weekend INT
+);
+'''
 
 create_categories_table = """
 CREATE TABLE IF NOT EXISTS categories (

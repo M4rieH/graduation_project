@@ -16,7 +16,7 @@ import psycopg2
 
 
 # FETCH FUNCTIONS AND QUERY-STRINGS
-from mapping_functions import *
+from help_functions import *
 
 from queries import *
 
@@ -67,29 +67,38 @@ def categories_to_csv():
     category_df = pd.DataFrame()
     category_df['category_id'] = identification
     category_df['category_name'] = cat_names
+    category_df['category_id'] = category_df['category_id'].astype(int)
     del identification
     del items
     del cat_names
     category_df.to_csv(r'prepped_data\categories.csv')
+    return category_df
 
-categories_to_csv()
+categories = categories_to_csv()
 
-US_holidays = holidays.UnitedStates()
 
-date(2015, 1, 2) in US_holidays
 
 for country_df in df_country_list: 
+    country_df.drop(country_df[country_df['video_id'] == '#NAME?'].index, inplace = True)
+    country_df.drop(country_df[country_df['video_id'] == '#VALUE!'].index, inplace = True)
+    
     country_df['trending_date'] = pd.to_datetime(country_df['trending_date'], format='%y.%d.%m')
-    country_df['publish_time'] = country_df['publish_time'].str.slice(0, -5)
-    country_df['publish_time'] = pd.to_datetime(country_df['publish_time'], format='%Y-%m-%dT%H:%M:%S')
+    country_df['publish_date'] = country_df['publish_time'].str.slice(0, -5)
+    del country_df['publish_time']
+    country_df['publish_date'] = pd.to_datetime(country_df['publish_date'], format='%Y-%m-%dT%H:%M:%S')
+
+    country_df['days_until_trending'] = -(country_df['publish_date'] - country_df['trending_date']).dt.days
     
-    country_df['days_until_trending'] = -(country_df['publish_time'] - country_df['trending_date']).dt.days
-    
-    country_df['publish_time_wd_num'] = country_df['publish_time'].dt.dayofweek
-    country_df['publish_time_wd'] = country_df['publish_time_wd_num'].map(weekday_mapping)
+    country_df['publish_date_wd_num'] = country_df['publish_date'].dt.dayofweek
+    country_df['publish_date_wd'] = country_df['publish_date_wd_num'].map(weekday_mapping)
     
     country_df['trending_date_wd_num'] = country_df['trending_date'].dt.dayofweek
     country_df['trending_date_wd'] = country_df['trending_date_wd_num'].map(weekday_mapping)
+
+    
+    country_df['trending_date'] = pd.to_datetime(country_df['trending_date'], format='%y.%d.%m').dt.date
+    country_df['publish_date'] = pd.to_datetime(country_df['publish_date'], format='%Y-%m-%dT%H:%M:%S').dt.date
+
     country_df["comments_disabled"] = country_df["comments_disabled"].astype(int)
     country_df["ratings_disabled"] = country_df["ratings_disabled"].astype(int)
     country_df["video_error_or_removed"] = country_df["video_error_or_removed"].astype(int)
@@ -99,20 +108,22 @@ for country_df in df_country_list:
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
     
+    country_df.drop_duplicates(['video_id','trending_date', 'country'],keep= 'last')
+
     time1 = time.time()
     country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['country'], country_df['trending_date']))]
     time2 = time.time()
     print(time2-time1)
-   
     print(f'ferdig med {country_df["country"][0]}')
 
 # TRANSLATOR 
 
-print('Beginning translation of US tags')
-time1 = time.time()
-yt_us['tags'] = yt_us['tags'].map(translate_to_english)
-time2 = time.time()
-print(f'Finished in {(time2-time1):.1f} seconds')
+
+# print('Beginning translation of US tags')
+# time1 = time.time()
+# yt_us['tags'] = yt_us['tags'].map(translate_to_english)
+# time2 = time.time()
+# print(f'Finished in {(time2-time1):.1f} seconds')
 
 def tags_to_list(df):
     unique_tags_list = [] 
@@ -122,27 +133,77 @@ def tags_to_list(df):
             unique_tags_list.append(tag)
     return unique_tags_list
 
+print('Executing tags-to-list...')
+time1 = time.time()
+all_tags = []
+tags = []
+for country_df in df_country_list:
+    tags_list = tags_to_list(country_df)
+    all_tags.append(tags_list)
+for tag_list in all_tags:
+    for tag in tag_list:
+        tags.append(tag)
 
-tags_list = tags_to_list(yt_us)
+print(len(tags))
+        
+time2 = time.time()
+print(f'Executed in {(time2-time1):1f} seconds')
 
-counter = Counter(tags_list).most_common()
-
-
-
-
+counter = Counter(tags).most_common()
 yt_all_countries = pd.concat(df_country_list, axis = 0)
-
-
-# yt_all_countries.to_csv(r'prepped_data\all_countries_data.csv')
-
+yt_all_countries = yt_all_countries.drop_duplicates(['video_id','trending_date','country'],keep= 'last')
 
 
 # alchemy
-print('Uploading to DB:')
-from sqlalchemy import create_engine
-engine_azure = create_engine('postgresql://marie@marie123:ProjectP5354@marie123.postgres.database.azure.com:5432/postgres')
-yt_all_countries.to_sql('trending_data',engine_azure)
-print('Uploading finished')
+
+def stage_yt_data():
+    
+    print('Uploading YT-data to DB...')
+    from sqlalchemy import create_engine
+    time1 = time.time()
+    engine_azure = create_engine('postgresql://marie@marie123:ProjectP5354@marie123.postgres.database.azure.com:5432/postgres')
+    yt_all_countries.to_sql('trending_data',engine_azure)
+    time2 = time.time()
+    print(f'Executed in {(time2-time1):1f} seconds')
+    
+stage_yt_data()
+
+# create video_dimension_data
+
+vid_dim_df = yt_all_countries[['video_id', 'title', 'channel_title', 'category_id', 'description']]
+
+
+vid_dim_df = vid_dim_df.merge(categories, on='category_id', how='left')
+
+vid_dim_df.drop_duplicates(subset='video_id', keep='last', inplace=True)
+del vid_dim_df['category_id']
+
+movies = yt_all_countries.loc[yt_all_countries['category_id'] == 30]
+
+vid_dim_df.to_csv(r'prepped_data\vid_dim_data.csv', index=False)
+
+def extract_tags_to_df(df):
+    a = 100000000
+    list_of_tuples = []
+    for index, row in df.iterrows():
+        video_id = row['video_id']
+        tags = row['tags']
+        a -= 1
+        for tag in tags:
+            tag_video_tuple = (video_id, tag)
+            list_of_tuples.append(tag_video_tuple)
+        if a == 0:
+            break
+    return list_of_tuples
+            
+        
+time1 = time.time()
+print(extract_tags_to_df(yt_us))
+time2 = time.time()
+print(f'Executed in {time2-time1} seconds')
+
+
+
 
 
 
