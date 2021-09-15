@@ -22,7 +22,7 @@ translator = Translator()
 from queries import *
 
 # loading datasets from 10 countries
-yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949
+yt_us = pd.read_csv('dataset/USvideos.csv', nrows=40) # 40 949
 yt_ca = pd.read_csv('dataset/CAvideos.csv') # 40 881
 yt_de = pd.read_csv('dataset/DEvideos.csv') # 40 840
 yt_fr = pd.read_csv('dataset/FRvideos.csv') # 40 724
@@ -118,30 +118,24 @@ def translate_to_english(tag_list):
         # print('\n')
         if (lang_code != 'en') and (lang_code != 'sco'):
             try:
-                # print(f'foreign tag in language {lang_code}: ', tag)
-                # print('to')
-                # old_tag = tag
+                old_tag = tag
                 tag = GoogleTranslator(source=lang_code, target = 'en').translate(tag)
                 # print('new tag:', tag, '\n')
                 # print(f'Successful translation from {lang_code} to english')
                 # print(f'Old tag: {old_tag} to new tag: {tag}')
-                success += 1
+                # success += 1
             except:
-                # print(f'Unable to translate tag: {tag}')
-                # print(f'think language is {lang_code}')
-                failure += 1
-    try:
-        failure_rate = float(failure/(failure+success))
-    except:
-        failure_rate = 'no data'
-    print(f'failure rate {failure_rate}')
+                print(f'Unable to translate tag: {tag}')
+                print(f'think language is {lang_code}')
+                # failure += 1
+    # try:
+    #     failure_rate = float(failure/(failure+success))
+    # except:
+    #     failure_rate = 'no data'
+    # # print(f'failure rate {failure_rate}')
      
     return tag_list
 
-
-words = ['나', '이다',' 여기 ',' 케이크','생신','배우다','나','한국어',' 하지만 ','그것','간다','아니다',' 너무 좋다']
-
-word_trans = translate_to_english(words)
 
 for country_df in df_country_list: 
     
@@ -162,22 +156,16 @@ for country_df in df_country_list:
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
-    if country_df['country'][0] == 'US':
-        country_df['tags'] = country_df['tags'].map(translate_to_english)
-    print(f'ferdig med {country_df}')
+   
+    print(f'ferdig med {country_df["country"][0]}')
 
+time1 = time.time()
+yt_us['tags'] = yt_us['tags'].map(translate_to_english)
+time2 = time.time()
 
-yt_us.hist(column=['tag_count'], bins = 5)
+print((time2-time1)/40, 'sekunder per linje')
 
-yt_us['video_id'].nunique()
-yt_us['channel_title'].nunique()
-yt_us['category_id'].nunique()
-
-
-
-
-
-
+sum_tags = yt_us['tag_count'].mean()
 
 # write to csv's
 
@@ -187,7 +175,7 @@ yt_us['category_id'].nunique()
 
 yt_all_countries = pd.concat(df_country_list, axis = 0)
 
-yt_all_countries['category_id'].nunique()
+sum_all_tags = yt_all_countries['tag_count'].sum()
 
 
 
