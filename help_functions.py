@@ -24,6 +24,47 @@ polyglot_logger.setLevel("ERROR")
 #HOLIDAY
 import holidays
 
+#BoW
+
+from sklearn.feature_extraction.text import CountVectorizer
+from bs4 import BeautifulSoup   
+import nltk
+from nltk.corpus import stopwords # Import the stop word list
+import re
+
+def clean_sentence(sentence):
+    # Function to convert a raw review to a string of words
+    # The input is a single string (a raw movie review), and 
+    # the output is a single string (a preprocessed movie review)
+    #
+    # 1. Remove HTML
+    this_sentence = BeautifulSoup(sentence, features="lxml").get_text() 
+    #
+    # 2. Remove non-letters        
+    letters_only = re.sub("[^a-zA-Z]", " ", this_sentence) 
+    #
+    # 3. Convert to lower case, split into individual words
+    words = letters_only.lower().split()                             
+    #
+    # 4. In Python, searching a set is much faster than searching
+    #   a list, so convert the stop words to a set
+    stops = set(stopwords.words("english"))                  
+    # 
+    # 5. Remove stop words
+    meaningful_words = [w for w in words if not w in stops]   
+    #
+    # 6. Join the words back into one string separated by space, 
+    # and return the result.
+    return( " ".join( meaningful_words)) 
+
+
+def list_to_sent(tags):
+    tag_as_sentence = " ".join(tags)
+    tag_as_sentence = clean_sentence(tag_as_sentence)
+    return tag_as_sentence
+
+
+
 def lang_detector(word):
     lang_obj = Detector(word, quiet=True)
     lang_code = lang_obj.language.code

@@ -11,6 +11,12 @@ import datetime as dt
 from datetime import date
 import time
 from collections import Counter
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
+
+
+
 # DB
 import psycopg2
 
@@ -26,11 +32,15 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.layers import Dense, Input, Conv2D, Flatten, LSTM, Bidirectional
 from tensorflow.keras.models import Model, Sequential
 import tensorflow as tf
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
+import xgboost
+from xgboost import XGBRegressor
 
 # TRANSLATOR
 from multiprocessing import Pool, cpu_count
 translator = Translator()
+
 
 # loading datasets from 10 countries
 yt_us = pd.read_csv('dataset/USvideos.csv') # 40 949 / nrows
@@ -85,8 +95,12 @@ def categories_to_csv():
 categories = categories_to_csv()
 
 
+    
+
 
 for country_df in df_country_list: 
+    time1 = time.time()
+
     country_df.drop(country_df[country_df['video_id'] == '#NAME?'].index, inplace = True)
     country_df.drop(country_df[country_df['video_id'] == '#VALUE!'].index, inplace = True)
     
@@ -116,10 +130,11 @@ for country_df in df_country_list:
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
     country_df['percentage_like'] = country_df['likes']/(country_df['likes']+country_df['dislikes'])
+    country_df['tag_sentence'] = country_df['tags'].map(list_to_sent)
+    
     
     country_df.drop_duplicates(['video_id','trending_date', 'country'],keep= 'last')
 
-    time1 = time.time()
     country_df['is_holiday'] = [holiday_mapping(*a) for a in tuple(zip(country_df['country'], country_df['trending_date']))]
     time2 = time.time()
     print(time2-time1)
@@ -128,6 +143,33 @@ for country_df in df_country_list:
 
 yt_all_countries = pd.concat(df_country_list, axis = 0)
 yt_all_countries = yt_all_countries.drop_duplicates(['video_id','trending_date','country'],keep= 'last')
+
+#BOW
+tagslist = yt_all_countries['tag_sentence'].tolist()
+
+vectorizer = CountVectorizer(analyzer = "word",   \
+                             tokenizer = None,    \
+                             preprocessor = None, \
+                             stop_words = None,   \
+                             max_features = 10)
+
+bow = vectorizer.fit_transform(tagslist)
+bow = bow.toarray()
+
+dist = np.sum(bow, axis=0)
+vocab = vectorizer.get_feature_names()
+
+
+
+max_count = 0
+for tag, count in zip(vocab, dist):
+    print(count, tag)
+
+for tag, count in zip(vocab, dist):
+    if count>max_count:
+        max_count=count
+        print(count, tag)
+
 
 
 
@@ -148,23 +190,26 @@ def tags_to_list(df):
             unique_tags_list.append(tag)
     return unique_tags_list
 
-print('Executing tags-to-list...')
-time1 = time.time()
-all_tags = []
-tags = []
-for country_df in df_country_list:
-    tags_list = tags_to_list(country_df)
-    all_tags.append(tags_list)
-for tag_list in all_tags:
-    for tag in tag_list:
-        tags.append(tag)
+def all_tags_to_list():
 
-print(len(tags))
-        
-time2 = time.time()
-print(f'Executed in {(time2-time1):1f} seconds')
-
-counter = Counter(tags).most_common()
+    print('Executing tags-to-list...')
+    time1 = time.time()
+    all_tags = []
+    tags = []
+    for country_df in df_country_list:
+        tags_list = tags_to_list(country_df)
+        all_tags.append(tags_list)
+    for tag_list in all_tags:
+        for tag in tag_list:
+            tags.append(tag)
+    
+    print(len(tags))
+            
+    time2 = time.time()
+    print(f'Executed in {(time2-time1):1f} seconds')
+    
+    counter = Counter(tags).most_common()
+    
 
 # alchemy
 
@@ -349,6 +394,15 @@ data['ld_ratio_lag1'] = data['ld_ratio_lag1'].fillna(-1)
 data['ld_ratio_lag2'] = data['ld_ratio_lag2'].fillna(-1)
 data['ld_ratio_lag3'] = data['ld_ratio_lag3'].fillna(-1)
 
+# adding bag of words
+
+
+
+
+
+
+
+
 
 ml_columns = ['change_views', 'ld_ratio', 'change_views_lag1', 'change_views_lag2', 'ld_ratio_lag1', 'ld_ratio_lag2', 'ld_ratio_lag3']
 
@@ -366,23 +420,74 @@ ml_data = data[ml_columns]
 
 train_data, test_data = train_test_split(ml_data, train_size = 0.7)
 
+feature_columns = list(train_data.columns)
+feature_columns.remove('change_views')
+feature_columns.remove('ld_ratio')
 
-input_layer = Input(shape=7)
+dense_target_columns = ['change_views', 'ld_ratio']
+
+X_train = train_data[feature_columns]
+y_train = train_data[dense_target_columns]
+
+X_train_np = np.c_[X_train]
+y_train_np = np.c_[y_train]
+
+X_test = test_data[feature_columns]
+y_test = test_data[dense_target_columns]
+
+X_test_np = np.c_[X_test]
+y_test_np = np.c_[y_test]
+
+
+
+# dense model 
+
+input_layer = Input(shape=23)
 first_hidden_layer = Dense(128, activation='relu')(input_layer)
 second_hidden_layer = Dense(64, activation='relu')(first_hidden_layer)
 third_hidden_layer = Dense(32, activation='relu')(second_hidden_layer)
-output_layer = Dense(1, activation='linear')(third_hidden_layer)
+output_layer = Dense(2, activation='linear')(third_hidden_layer)
 
 dense_model = Model(inputs=input_layer, outputs=output_layer)
 dense_model.compile(optimizer='adam', loss=['mse'], metrics=['mae'])
-dense_model.summary()
 
 
 
+fitted_model = dense_model.fit(X_train_np, y_train_np, 
+                                batch_size=128, 
+                                epochs=25,
+                                validation_data=(X_test_np, y_test_np))
+
+
+dense_test_results = dense_model.predict(X_test_np)
+
+true_changeviews = y_test_np[:,0]
+test_results_cv = dense_test_results[:,0]
+y_naive = 0*np.ones(test_results_cv.shape)
 
 
 
+mse_changeviews_dense = mean_squared_error(true_changeviews, test_results_cv)
+mae_changeviews_dense = mean_absolute_error(true_changeviews, test_results_cv)
 
+mse_naive_dense = mean_squared_error(true_changeviews, y_naive)
+mae_naive_dense = mean_absolute_error(true_changeviews, y_naive)
+
+
+# xgboost 
+
+#xgb_model = XGBRegressor(n_estimators=100, max_depth = 7, eta=0.1)
+xgb_model = XGBRegressor()
+
+y_train_xg = y_train['change_views']
+
+
+xgb_model.fit(X_train_np, y_train_xg)
+
+xgb_test_results = xgb_model.predict(X_test_np)
+
+mse_changeviews_xgb = mean_squared_error(true_changeviews, xgb_test_results)
+mae_changeviews_xgb = mean_absolute_error(true_changeviews, xgb_test_results)
 
 
 
