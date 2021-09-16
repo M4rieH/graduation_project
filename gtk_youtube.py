@@ -17,8 +17,16 @@ import psycopg2
 
 # FETCH FUNCTIONS AND QUERY-STRINGS
 from help_functions import *
-
 from queries import *
+
+# ML
+
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.layers import Dense, Input, Conv2D, Flatten, LSTM, Bidirectional
+from tensorflow.keras.models import Model, Sequential
+import tensorflow as tf
+
 
 # TRANSLATOR
 from multiprocessing import Pool, cpu_count
@@ -117,6 +125,12 @@ for country_df in df_country_list:
     print(time2-time1)
     print(f'ferdig med {country_df["country"][0]}')
 
+
+yt_all_countries = pd.concat(df_country_list, axis = 0)
+yt_all_countries = yt_all_countries.drop_duplicates(['video_id','trending_date','country'],keep= 'last')
+
+
+
 # TRANSLATOR 
 
 
@@ -151,9 +165,6 @@ time2 = time.time()
 print(f'Executed in {(time2-time1):1f} seconds')
 
 counter = Counter(tags).most_common()
-yt_all_countries = pd.concat(df_country_list, axis = 0)
-yt_all_countries = yt_all_countries.drop_duplicates(['video_id','trending_date','country'],keep= 'last')
-
 
 # alchemy
 
@@ -171,7 +182,7 @@ def stage_yt_data():
 
 # create video_dimension_data
 
-vid_dim_df = yt_all_countries[['video_id', 'title', 'channel_title', 'category_id', 'description', 'publish_date']]
+vid_dim_df = yt_all_countries[['video_id', 'channel_title', 'category_id', 'title', 'description', 'publish_date']]
 
 
 vid_dim_df = vid_dim_df.merge(categories, on='category_id', how='left')
@@ -213,9 +224,6 @@ def all_tags_to_df():
     
     return all_tags_df
 
-tag_df = all_tags_to_df()
-
-yt_all_countries['likes'].mean()
 
 
 def extract_unique_tags(df):
@@ -224,35 +232,36 @@ def extract_unique_tags(df):
     temp_df.drop_duplicates(subset='tag', keep='last', inplace=True)
     return temp_df
 
-all_tags_alone = extract_unique_tags(tag_df)
-all_tags_alone.reset_index(inplace=True)
-all_tags_alone['tag_id'] = all_tags_alone.index
-del all_tags_alone['index']
-all_tags_alone.to_csv(r'prepped_data\all_tags_alone.csv', index=False)
-
-tag_df = tag_df.merge(all_tags_alone, how='left', on='tag')
-del tag_df['tag']
-
-tag_df.to_csv(r'prepped_data\tags_df.csv', index=False)
-
-
+def tags_df_to_csv():
+    all_tags_alone = extract_unique_tags(tag_df)
+    all_tags_alone.reset_index(inplace=True)
+    all_tags_alone['tag_id'] = all_tags_alone.index
+    del all_tags_alone['index']
+    all_tags_alone.to_csv(r'prepped_data\all_tags_alone.csv', index=False)
+    
+    tag_df = tag_df.merge(all_tags_alone, how='left', on='tag')
+    del tag_df['tag']
+    
+    tag_df.to_csv(r'prepped_data\tags_df.csv', index=False)
+    
+    
 
 
 # finding valid channels with 2 or more viral videos wordwide
 
-all_temp = yt_all_countries.copy()
+# all_temp = yt_all_countries.copy()
 
-all_temp = all_temp.sort_values('trending_date').drop_duplicates(['video_id'], keep='last')
+# all_temp = all_temp.sort_values('trending_date').drop_duplicates(['video_id'], keep='last')
 
-valid_channels = all_temp.groupby(['channel_title']).count()
+# valid_channels = all_temp.groupby(['channel_title']).count()
 
-valid_channels = valid_channels.reset_index()[['channel_title','video_id']]
+# valid_channels = valid_channels.reset_index()[['channel_title','video_id']]
 
-valid_channels = valid_channels.loc[valid_channels['video_id']>=2]
+# valid_channels = valid_channels.loc[valid_channels['video_id']>=2]
 
-valid_channels = valid_channels.reset_index()
+# valid_channels = valid_channels.reset_index()
 
-del valid_channels['index']
+# del valid_channels['index']
 
 
 
@@ -260,7 +269,9 @@ del valid_channels['index']
 
 data = yt_all_countries.copy()
 
-data = data[['channel_title', 'video_id', 'trending_date']]
+data = data.merge(categories, how='left', on='category_id')
+
+data = data[['channel_title', 'video_id', 'trending_date', 'category_name']]
 
 data = data.sort_values(['channel_title', 'video_id', 'trending_date'])
 
@@ -278,86 +289,109 @@ join_data = yt_all_countries.copy()
 
 join_data = join_data.drop_duplicates(['video_id', 'trending_date'], keep='last')
 
-data = data.merge(join_data, how='left', on = ['video_id', 'trending_date'])
 
-data['channel_title'] = data['channel_title_x']
-del data['channel_title_x']
-del data['channel_title_y']
+#merge data and join_data
+join_include_columns = ['video_id', 'trending_date', 'views', 'likes', 'dislikes', 'comment_count']
 
-
-
+data = data.merge(join_data[join_include_columns], how='left', on = ['video_id', 'trending_date'])
+data_copy = data.copy()
 
 
 
+columns_of_interest = ['channel_title', 'trend_numb', 'views', 'likes', 'dislikes', 'comment_count']
+
+lag1 = data.copy()
+lag1['trend_numb'] = lag1['trend_numb']+1
+data = data.merge(lag1[columns_of_interest], how = 'left', left_on =['channel_title', 'trend_numb'],
+                  right_on = ['channel_title', 'trend_numb'], suffixes=('', '_lag1'))
+
+
+lag2 = data_copy.copy()
+lag2['trend_numb'] = lag2['trend_numb']+2
+data = data.merge(lag2[columns_of_interest], how = 'left', left_on =['channel_title', 'trend_numb'],
+                  right_on = ['channel_title', 'trend_numb'],  suffixes=('', '_lag2'))
 
 
 
+lag3 = data_copy.copy()
+lag3['trend_numb'] = lag3['trend_numb']+3
+data = data.merge(lag3[columns_of_interest], how = 'left', left_on =['channel_title', 'trend_numb'],
+                  right_on = ['channel_title', 'trend_numb'],  suffixes=('', '_lag3'))
 
 
+data['change_views'] = (data['views']-data['views_lag1'])/data['views_lag1']
 
 
+data['change_views_lag1'] = (data['views_lag1']-data['views_lag2'])/data['views_lag2']
+data['change_views_lag2'] = (data['views_lag2']-data['views_lag3'])/data['views_lag3']
+
+data['ld_ratio'] = data['likes']/(data['likes']+data['dislikes'])
+data['ld_ratio_lag1'] = data['likes_lag1']/(data['likes_lag1']+data['dislikes_lag1'])
+data['ld_ratio_lag2'] = data['likes_lag2']/(data['likes_lag2']+data['dislikes_lag2'])
+data['ld_ratio_lag3'] = data['likes_lag3']/(data['likes_lag3']+data['dislikes_lag3'])
 
 
+enc = OneHotEncoder(sparse=False)
+ohe_columns = list(data['category_name'].unique())
 
 
+enc_df = pd.DataFrame(enc.fit_transform(data[['category_name']]), columns=ohe_columns)
+
+data = data.join(enc_df)
+
+# removing channels with less than 2 trending videos
+data = data[data['views_lag2'].notna()]
+# handling nans
+data['change_views_lag1'] = data['change_views_lag1'].fillna(-1)
+data['change_views_lag2'] = data['change_views_lag2'].fillna(-1)
+data['ld_ratio'] = data['ld_ratio'].fillna(-1)
+data['ld_ratio_lag1'] = data['ld_ratio_lag1'].fillna(-1)
+data['ld_ratio_lag2'] = data['ld_ratio_lag2'].fillna(-1)
+data['ld_ratio_lag3'] = data['ld_ratio_lag3'].fillna(-1)
 
 
+ml_columns = ['change_views', 'ld_ratio', 'change_views_lag1', 'change_views_lag2', 'ld_ratio_lag1', 'ld_ratio_lag2', 'ld_ratio_lag3']
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-# something
-
-def get_previous_video_views(channel_title):
+for cat in ohe_columns:
+    ml_columns.append(cat)
     
-    query = data.loc[data['channel_title']==channel_title]
-    try:
-        max_index = query['trend_numb'].idxmax()
-        query = data.iloc[max_index]
-        views = query['views']
-    except:
-        views = np.nan
-    
-    return views
-
-def get_previous_video_views_lag1(channel_title):
-    
-    query = data.loc[data['channel_title']==channel_title]
-    try:
-        max_index = query['trend_numb'].idxmax()
-        query = data.iloc[max_index-1]
-        views = query['views']
-    except:
-        views = np.nan
-    
-    return views
+ml_data = data[ml_columns]
 
 
-noe = get_previous_video_views('April LaJune')
 
-# soemthing else
+# ML PART
 
-time1 = time.time()
-valid_channels['views_lag1'] = valid_channels['channel_title'].map(get_previous_video_views)
-time2 = time.time()
-print(f'Executed in {time2-time1} seconds')
+# train_test_split
 
-data_lag_2 = data.copy()
+train_data, test_data = train_test_split(ml_data, train_size = 0.7)
 
-time1 = time.time()
-valid_channels = valid_channels.merge()
-time2 = time.time()
-print(f'Executed in {time2-time1} seconds')
+
+input_layer = Input(shape=7)
+first_hidden_layer = Dense(128, activation='relu')(input_layer)
+second_hidden_layer = Dense(64, activation='relu')(first_hidden_layer)
+third_hidden_layer = Dense(32, activation='relu')(second_hidden_layer)
+output_layer = Dense(1, activation='linear')(third_hidden_layer)
+
+dense_model = Model(inputs=input_layer, outputs=output_layer)
+dense_model.compile(optimizer='adam', loss=['mse'], metrics=['mae'])
+dense_model.summary()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

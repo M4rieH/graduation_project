@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS datamart.FACTS_trending_youtube_data(
 
 
 populate_dim_videos_table_query = '''
-INSERT INTO datamart.DIM_videos(video_id, title, channel_title, description, category_name, pub_date)
+INSERT INTO datamart.DIM_videos(video_id, channel_title, title, description, pub_date, category_name)
 VALUES(%s, %s, %s, %s, %s, %s)
 
 '''
