@@ -107,6 +107,7 @@ for country_df in df_country_list:
     country_df['comment per view'] = country_df['comment_count']/country_df['views']
     country_df['tags'] = country_df['tags'].map(clean_tags)
     country_df['tag_count'] = country_df['tags'].map(count_tags)
+    country_df['percentage_like'] = country_df['likes']/(country_df['likes']+country_df['dislikes'])
     
     country_df.drop_duplicates(['video_id','trending_date', 'country'],keep= 'last')
 
@@ -170,7 +171,7 @@ def stage_yt_data():
 
 # create video_dimension_data
 
-vid_dim_df = yt_all_countries[['video_id', 'title', 'channel_title', 'category_id', 'description']]
+vid_dim_df = yt_all_countries[['video_id', 'title', 'channel_title', 'category_id', 'description', 'publish_date']]
 
 
 vid_dim_df = vid_dim_df.merge(categories, on='category_id', how='left')
@@ -225,9 +226,140 @@ def extract_unique_tags(df):
 
 all_tags_alone = extract_unique_tags(tag_df)
 all_tags_alone.reset_index(inplace=True)
-all_tags_alone['index'] = all_tags_alone.index
-        
+all_tags_alone['tag_id'] = all_tags_alone.index
+del all_tags_alone['index']
 all_tags_alone.to_csv(r'prepped_data\all_tags_alone.csv', index=False)
+
+tag_df = tag_df.merge(all_tags_alone, how='left', on='tag')
+del tag_df['tag']
+
+tag_df.to_csv(r'prepped_data\tags_df.csv', index=False)
+
+
+
+
+# finding valid channels with 2 or more viral videos wordwide
+
+all_temp = yt_all_countries.copy()
+
+all_temp = all_temp.sort_values('trending_date').drop_duplicates(['video_id'], keep='last')
+
+valid_channels = all_temp.groupby(['channel_title']).count()
+
+valid_channels = valid_channels.reset_index()[['channel_title','video_id']]
+
+valid_channels = valid_channels.loc[valid_channels['video_id']>=2]
+
+valid_channels = valid_channels.reset_index()
+
+del valid_channels['index']
+
+
+
+#adding
+
+data = yt_all_countries.copy()
+
+data = data[['channel_title', 'video_id', 'trending_date']]
+
+data = data.sort_values(['channel_title', 'video_id', 'trending_date'])
+
+data = data.drop_duplicates(['video_id'], keep='first')
+
+data = data.sort_values(['channel_title', 'trending_date'])
+
+data = data.reset_index(drop=True)
+
+data['trend_numb'] = data[['channel_title']].groupby(['channel_title']).cumcount().reset_index(drop=True)
+
+data = data.sort_values(['channel_title', 'trend_numb'])
+
+join_data = yt_all_countries.copy()
+
+join_data = join_data.drop_duplicates(['video_id', 'trending_date'], keep='last')
+
+data = data.merge(join_data, how='left', on = ['video_id', 'trending_date'])
+
+data['channel_title'] = data['channel_title_x']
+del data['channel_title_x']
+del data['channel_title_y']
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# something
+
+def get_previous_video_views(channel_title):
+    
+    query = data.loc[data['channel_title']==channel_title]
+    try:
+        max_index = query['trend_numb'].idxmax()
+        query = data.iloc[max_index]
+        views = query['views']
+    except:
+        views = np.nan
+    
+    return views
+
+def get_previous_video_views_lag1(channel_title):
+    
+    query = data.loc[data['channel_title']==channel_title]
+    try:
+        max_index = query['trend_numb'].idxmax()
+        query = data.iloc[max_index-1]
+        views = query['views']
+    except:
+        views = np.nan
+    
+    return views
+
+
+noe = get_previous_video_views('April LaJune')
+
+# soemthing else
+
+time1 = time.time()
+valid_channels['views_lag1'] = valid_channels['channel_title'].map(get_previous_video_views)
+time2 = time.time()
+print(f'Executed in {time2-time1} seconds')
+
+data_lag_2 = data.copy()
+
+time1 = time.time()
+valid_channels = valid_channels.merge()
+time2 = time.time()
+print(f'Executed in {time2-time1} seconds')
+
+
 
 
 

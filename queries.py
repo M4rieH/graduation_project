@@ -6,28 +6,65 @@ Created on Wed Sep  8 14:50:55 2021
 
 """
 
+populate_facts_tags_query = '''
+
+INSERT INTO datamart.facts_tags(video_id, tag_id)
+VALUES(%s, %s)
+
+'''
+
+
+
+count_facts_tags_query = '''
+
+SELECT COUNT(*) FROM datamart.facts_tags
+
+'''
+
+
+populate_dim_tags_query = '''
+INSERT INTO datamart.DIM_tags(tag, tag_id)
+VALUES(%s, %s)
+'''
+
+count_dim_tags_query = '''
+
+SELECT COUNT(*) FROM datamart.DIM_tags
+
+'''
+
+
+create_jt_query = '''
+CREATE TABLE IF NOT EXISTS datamart.facts_tags(
+    tag_id INT references datamart.dim_tags(tag_id),
+    video_id VARCHAR(25) references datamart.dim_videos(video_id),
+    PRIMARY KEY(tag_id, video_id))
+'''
+
+
 create_facts_table_query = '''
 
 CREATE TABLE IF NOT EXISTS datamart.FACTS_trending_youtube_data(
     video_id VARCHAR(25) references datamart.dim_videos(video_id),
     trend_date_id TEXT references datamart.dim_date(date),
-    pub_date_id TEXT references datamart.dim_date(date),
     country_code VARCHAR(2) references datamart.DIM_countries(country_code),
+    views INT,
     likes INT,
     dislikes INT,
     comment_count INT, 
+    comments_disabled INT,
     ratings_disabled INT,
     video_error_or_removed INT, 
     days_until_trending INT,
-    PRIMARY KEY(video_id, trend_date_id, pub_date_id, country_code)
+    PRIMARY KEY(video_id, trend_date_id, country_code)
     )
 
 '''
 
 
 populate_dim_videos_table_query = '''
-INSERT INTO datamart.DIM_videos(video_id, title, channel_title, description, category_name)
-VALUES(%s, %s, %s, %s, %s)
+INSERT INTO datamart.DIM_videos(video_id, title, channel_title, description, category_name, pub_date)
+VALUES(%s, %s, %s, %s, %s, %s)
 
 '''
 
@@ -46,7 +83,8 @@ CREATE TABLE IF NOT EXISTS datamart.DIM_videos(
     channel_title TEXT,
     category_name VARCHAR(30),
     title TEXT, 
-    description TEXT
+    description TEXT,
+    pub_date TEXT
     )
 
 '''

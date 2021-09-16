@@ -133,5 +133,44 @@ def create_facts_table():
 create_facts_table()
 
 
- 
+def create_jt_tags_table():
+    with getOnThatDataMart() as connection:
+        my_cursor = connection.cursor()
+        my_cursor.execute(create_jt_query)
         
+create_jt_tags_table()
+
+def populate_dim_tags():
+    with getOnThatDataMart() as connection:
+        my_cursor = connection.cursor()
+        my_cursor.execute(count_dim_tags_query)
+        count = my_cursor.fetchone()
+        print(count)
+        if count[0] == 0:
+            df = pd.read_csv('prepped_data\all_tags_alone.csv')
+            print(df)
+            execute_batch(my_cursor, populate_dim_tags_query, df.values.tolist())
+
+populate_dim_tags()
+
+def populate_facts_tags():
+    with getOnThatDataMart() as connection:
+        my_cursor = connection.cursor()
+        my_cursor.execute(count_facts_tags_query)
+        count = my_cursor.fetchone()
+        print(count)
+        if count[0] == 0:
+            df = pd.read_csv(r'prepped_data\tags_df.csv')
+            print(df)
+            execute_batch(my_cursor, populate_facts_tags_query, df.values.tolist())
+
+populate_facts_tags()            
+            
+            
+            
+            
+            
+            
+            
+            
+            
