@@ -41,8 +41,9 @@ def clean_sentence(sentence):
     this_sentence = BeautifulSoup(sentence, features="lxml").get_text() 
     #
     # 2. Remove non-letters        
-    letters_only = re.sub("[^a-zA-Z]", " ", this_sentence) 
+    #letters_only = re.sub("[^a-zA-Z]", " ", this_sentence) 
     #
+    letter_only = this_sentence
     # 3. Convert to lower case, split into individual words
     words = letters_only.lower().split()                             
     #
@@ -58,10 +59,24 @@ def clean_sentence(sentence):
     return( " ".join( meaningful_words)) 
 
 
+
+def space_to_underscore(list_of_tags):
+    the_list = []
+    for tag in list_of_tags:
+        tag = tag.replace(' ', '_')
+        the_list.append(tag)
+    return the_list
+
+list_of_tags =['jeg heter jacob', 'folke musikk', '32fLFAWw^*____^w\335 aeg']
+
+
 def list_to_sent(tags):
+    tags = space_to_underscore(tags)
     tag_as_sentence = " ".join(tags)
     tag_as_sentence = clean_sentence(tag_as_sentence)
     return tag_as_sentence
+print(list_to_sent(list_of_tags))
+
 
 
 

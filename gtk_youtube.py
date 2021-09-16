@@ -144,6 +144,10 @@ for country_df in df_country_list:
 yt_all_countries = pd.concat(df_country_list, axis = 0)
 yt_all_countries = yt_all_countries.drop_duplicates(['video_id','trending_date','country'],keep= 'last')
 
+for country_df in df_country_list:
+    country_df['tag_sentence'] = country_df['tags'].map(list_to_sent)
+
+
 #BOW
 tagslist = yt_all_countries['tag_sentence'].tolist()
 
@@ -151,7 +155,7 @@ vectorizer = CountVectorizer(analyzer = "word",   \
                              tokenizer = None,    \
                              preprocessor = None, \
                              stop_words = None,   \
-                             max_features = 10)
+                             max_features = 500)
 
 bow = vectorizer.fit_transform(tagslist)
 bow = bow.toarray()
@@ -169,8 +173,7 @@ for tag, count in zip(vocab, dist):
     if count>max_count:
         max_count=count
         print(count, tag)
-
-
+        
 
 
 # TRANSLATOR 
